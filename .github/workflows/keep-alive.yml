@@ -1,0 +1,54 @@
+name: Keep Render Services Alive
+
+# ตั้งเวลาทำงาน
+on:
+  schedule:
+    # รันทุก 10 นาที (UTC time)
+    # เวลาไทย = UTC +7
+    # 23:00-16:00 UTC = 06:00-23:00 เวลาไทย
+    - cron: '*/10 23,0-16 * * *'
+  
+  # ให้รันแบบ manual ได้
+  workflow_dispatch:
+
+jobs:
+  ping-services:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Setup timezone
+        uses: szenius/set-timezone@v1.2
+        with:
+          timezoneLinux: "Asia/Bangkok"
+      
+      - name: Current time
+        run: echo "Current time - $(date)"
+      
+      - name: Ping n8n on Render
+        run: |
+          echo "🏓 Pinging n8n..."
+          response=$(curl -s -o /dev/null -w "%{http_code}" https://n8n-1se2.onrender.com)
+          echo "Response code: $response"
+          
+          if [ $response -eq 200 ]; then
+            echo "✅ n8n is alive!"
+          else
+            echo "⚠️ n8n returned code $response"
+          fi
+      
+      - name: Wait 5 seconds
+        run: sleep 5
+      
+      - name: Ping webhook endpoint
+        run: |
+          echo "🏓 Pinging webhook..."
+          response=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
+            -H "Content-Type: application/json" \
+            -d '{"ping": true}' \
+            https://your-n8n-app.onrender.com/webhook/nutrition)
+          echo "Webhook response: $response"
+      
+      - name: Summary
+        run: |
+          echo "✅ Keep alive completed at $(date)"
+          echo "Next run in 10 minutes..."
